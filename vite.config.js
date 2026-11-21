@@ -1,0 +1,22 @@
+import { defineConfig } from 'vite';
+import laravel from 'laravel-vite-plugin';
+import vue from '@vitejs/plugin-vue';
+
+export default defineConfig({
+    plugins: [
+        laravel({
+            input: [
+                'resources/js/app.js',
+                'resources/js/admin.js',
+                'resources/js/public.js',
+            ],
+            refresh: true,
+        }),
+        vue(),
+    ],
+    server: {
+        watch: {
+            ignored: ['**/storage/framework/views/**'],
+        },
+    },
+});
