@@ -2,6 +2,8 @@
 
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureCommitteeAccess;
+use App\Http\Middleware\EnsureMember;
+use App\Http\Middleware\EnsureNotMember;
 use App\Http\Middleware\SetLocale;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -21,6 +23,8 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
         $middleware->alias([
             'committee' => EnsureCommitteeAccess::class,
+            'not-member' => EnsureNotMember::class,
+            'members-only' => EnsureMember::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

@@ -50,7 +50,9 @@ class VoteTest extends TestCase
 
     private function createVote(User $creator, array $voters): Vote
     {
-        $response = $this->actingAs($creator)->postJson(route('admin.api.votes.store'), $this->votePayload($voters))->assertCreated();
+        // Members use the member area's API; committee accounts use /admin/api.
+        $storeRoute = $creator->isMember() ? 'member.api.votes.store' : 'admin.api.votes.store';
+        $response = $this->actingAs($creator)->postJson(route($storeRoute), $this->votePayload($voters))->assertCreated();
 
         return Vote::query()->findOrFail($response->json('data.id'));
     }

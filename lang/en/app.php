@@ -462,6 +462,7 @@ return [
 
     'validation' => [
         'members_only_pages' => 'This page is for committee accounts.',
+        'admin_area_only' => 'This page is for committee accounts. Member accounts use the member area.',
         'field_required' => 'This field is required.',
         'reason_required' => 'Please state the reason for rejection.',
         'status_already' => 'Member status is already :status.',

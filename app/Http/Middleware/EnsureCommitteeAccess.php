@@ -25,6 +25,6 @@ class EnsureCommitteeAccess
             return response()->json(['message' => __('app.validation.members_only_pages')], 403);
         }
 
-        return redirect()->route('admin.votes.index');
+        return redirect()->route('member.home');
     }
 }

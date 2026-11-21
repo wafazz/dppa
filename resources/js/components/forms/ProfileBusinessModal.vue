@@ -2,7 +2,7 @@
 import { computed, reactive, ref, watch } from 'vue';
 import AppModal from '../AppModal.vue';
 import AppSelect2 from '../AppSelect2.vue';
-import { api, ApiError, csrfToken, firstError } from '../../lib/http';
+import { api, ApiError, apiPath, csrfToken, firstError } from '../../lib/http';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/feedback';
 import { t } from '../../lib/i18n';
 
@@ -125,7 +125,7 @@ async function uploadDocument(event) {
         const body = new FormData();
         body.append('ssm', file);
 
-        const response = await fetch('/admin/api/profile/business/document', {
+        const response = await fetch(apiPath('/admin/api/profile/business/document'), {
             method: 'POST',
             headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
             body,
@@ -188,7 +188,7 @@ async function uploadDocument(event) {
                             <div class="small text-body-secondary mb-2">{{ t('app.profile.business_ssm_required') }}</div>
                             <div class="d-flex flex-wrap gap-2 align-items-center">
                                 <span v-if="profile.has_business_document" class="small">
-                                    <a href="/admin/api/profile/business/document" target="_blank" rel="noopener">
+                                    <a :href="apiPath('/admin/api/profile/business/document')" target="_blank" rel="noopener">
                                         {{ t('app.profile.business_ssm_view') }}
                                     </a>
                                     <span class="text-body-secondary">({{ profile.business_document_name }})</span>

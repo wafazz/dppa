@@ -177,7 +177,7 @@ class ScheduledNotices
                         'name' => $voter->name,
                         'vote' => $vote->title,
                         'closes' => $vote->closes_at->translatedFormat('j M Y, H:i'),
-                    ], route('admin.votes.index', ['status' => 'open']));
+                    ], $this->votesUrl($voter, 'open'));
                 });
 
                 $vote->forceFill(['opened_notified_at' => now()])->save();
@@ -212,7 +212,7 @@ class ScheduledNotices
                             'vote' => $vote->title,
                             'closes' => $vote->closes_at->translatedFormat('j M Y, H:i'),
                             'hours' => (string) self::CLOSING_WARNING_HOURS,
-                        ], route('admin.votes.index', ['status' => 'open']));
+                        ], $this->votesUrl($voter, 'open'));
                     });
 
                 $vote->forceFill(['closing_notified_at' => now()])->save();
@@ -241,13 +241,21 @@ class ScheduledNotices
                         $sent += (int) $this->notices->deliver('vote_results', (string) $account->email, [
                             'name' => $account->name,
                             'vote' => $vote->title,
-                        ], route('admin.votes.index', ['status' => 'closed']));
+                        ], $this->votesUrl($account, 'closed'));
                     });
 
                 $vote->forceFill(['results_notified_at' => now()])->save();
             });
 
         return $sent;
+    }
+
+    /**
+     * Members open votes under /member; committee accounts under /admin.
+     */
+    private function votesUrl(User $user, string $status): string
+    {
+        return route($user->isMember() ? 'member.votes.index' : 'admin.votes.index', ['status' => $status]);
     }
 
     /**

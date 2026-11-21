@@ -1,6 +1,6 @@
 <script setup>
 import { onBeforeUnmount, ref } from 'vue';
-import { csrfToken } from '../../lib/http';
+import { apiPath, csrfToken } from '../../lib/http';
 import { confirmAction, notifyError, notifySuccess } from '../../lib/feedback';
 import { t } from '../../lib/i18n';
 
@@ -132,7 +132,7 @@ async function save() {
         const body = new FormData();
         body.append('avatar', preparedBlob.value, 'avatar.png');
 
-        const response = await fetch('/admin/api/profile/avatar', {
+        const response = await fetch(apiPath('/admin/api/profile/avatar'), {
             method: 'POST',
             headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
             body,
@@ -171,7 +171,7 @@ async function remove() {
     busy.value = true;
 
     try {
-        const response = await fetch('/admin/api/profile/avatar', {
+        const response = await fetch(apiPath('/admin/api/profile/avatar'), {
             method: 'DELETE',
             headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrfToken(), 'X-Requested-With': 'XMLHttpRequest' },
             credentials: 'same-origin',

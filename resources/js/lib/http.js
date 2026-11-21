@@ -1,3 +1,14 @@
+/**
+ * Member pages live under /member and call the member API; committee pages keep /admin/api.
+ */
+export function apiPath(path) {
+    if (window.location.pathname.startsWith('/member') && path.startsWith('/admin/api/')) {
+        return `/member/api/${path.slice('/admin/api/'.length)}`;
+    }
+
+    return path;
+}
+
 import { t } from './i18n';
 
 /**
@@ -33,7 +44,7 @@ export async function api(url, { method = 'GET', body } = {}) {
         payload = JSON.stringify(body);
     }
 
-    const response = await fetch(url, {
+    const response = await fetch(apiPath(url), {
         method,
         headers,
         body: payload,

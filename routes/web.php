@@ -92,7 +92,65 @@ Route::post('/logout', [LoginController::class, 'destroy'])
 | Management area (authenticated). Every route is protected by a gate.
 |--------------------------------------------------------------------------
 */
-Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): void {
+/*
+| Self-service routes for profile, two-factor sign-in and votes. Members use them under /member/api and
+| committee accounts under /admin/api, so the same controllers serve both areas.
+*/
+$selfServiceApi = function (): void {
+    Route::prefix('profile/two-factor')->name('profile.two-factor.')->group(function (): void {
+        Route::get('/', [TwoFactorSettingsController::class, 'show'])->name('show');
+        Route::post('/authenticator/setup', [TwoFactorSettingsController::class, 'startAuthenticator'])->name('authenticator.setup');
+        Route::post('/authenticator/confirm', [TwoFactorSettingsController::class, 'confirmAuthenticator'])->name('authenticator.confirm');
+        Route::post('/email/send', [TwoFactorSettingsController::class, 'sendEmailCode'])->name('email.send');
+        Route::post('/email/confirm', [TwoFactorSettingsController::class, 'confirmEmail'])->name('email.confirm');
+        Route::post('/email/disable-code', [TwoFactorSettingsController::class, 'sendDisableEmailCode'])->name('email.disable-code');
+        Route::delete('/{method}', [TwoFactorSettingsController::class, 'disable'])->name('disable');
+    });
+
+    Route::prefix('profile')->name('profile.')->group(function (): void {
+        Route::get('/', [ProfileController::class, 'show'])->name('show');
+        Route::put('/', [ProfileController::class, 'update'])->name('update');
+        Route::put('/password', [ProfileController::class, 'updatePassword'])->name('password');
+        Route::post('/avatar', [ProfileController::class, 'storeAvatar'])->name('avatar.store');
+        Route::delete('/avatar', [ProfileController::class, 'destroyAvatar'])->name('avatar.destroy');
+        Route::put('/business', [ProfileController::class, 'updateBusiness'])->name('business');
+        Route::post('/business/document', [ProfileController::class, 'storeBusinessDocument'])->name('business.document.store');
+        Route::get('/business/document', [ProfileController::class, 'showBusinessDocument'])->name('business.document.show');
+        Route::post('/business/submit', [ProfileController::class, 'submitBusiness'])->name('business.submit');
+    });
+
+    Route::prefix('votes')->name('votes.')->group(function (): void {
+        Route::get('/', [VoteController::class, 'index'])->name('index');
+        Route::post('/', [VoteController::class, 'store'])->name('store');
+        Route::get('/voters', [VoteController::class, 'voters'])->name('voters');
+        Route::get('/positions', [VoteController::class, 'positions'])->name('positions');
+        Route::get('/creators', [VoteController::class, 'creators'])->middleware('can:manage-accounts')->name('creators');
+        Route::put('/creators/{user}', [VoteController::class, 'setCreator'])->middleware('can:manage-accounts')->name('creators.update');
+        Route::put('/{vote}', [VoteController::class, 'update'])->name('update');
+        Route::post('/{vote}/close', [VoteController::class, 'close'])->name('close');
+        Route::post('/{vote}/cancel', [VoteController::class, 'cancel'])->name('cancel');
+        Route::post('/{vote}/ballot', [VoteController::class, 'cast'])->name('cast');
+    });
+
+};
+
+/*
+|--------------------------------------------------------------------------
+| Member area: /member. Only member accounts, who see their profile, votes and own activity.
+|--------------------------------------------------------------------------
+*/
+Route::middleware(['auth', 'members-only'])->prefix('member')->name('member.')->group(function () use ($selfServiceApi): void {
+    Route::get('/', fn () => redirect()->route('member.votes.index'))->name('home');
+    Route::get('/votes', [PageController::class, 'votes'])->name('votes.index');
+    Route::get('/profile', [PageController::class, 'profile'])->name('profile.index');
+    Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
+
+    Route::prefix('api')->name('api.')->group(function () use ($selfServiceApi): void {
+        $selfServiceApi();
+    });
+});
+
+Route::middleware(['auth', 'not-member'])->prefix('admin')->name('admin.')->group(function () use ($selfServiceApi): void {
     Route::get('/', [PageController::class, 'dashboard'])->middleware('committee')->name('dashboard');
 
     Route::get('/members', [PageController::class, 'members'])->middleware('can:view-members')->name('members.index');
@@ -108,7 +166,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
     Route::get('/email-templates', [PageController::class, 'emailTemplates'])->middleware('can:manage-settings')->name('email-templates.index');
     Route::get('/announcements', [PageController::class, 'announcements'])->middleware('can:manage-settings')->name('announcements.index');
 
-    Route::prefix('api')->name('api.')->group(function (): void {
+    Route::prefix('api')->name('api.')->group(function () use ($selfServiceApi): void {
         Route::get('/dashboard', [DashboardController::class, 'show'])->middleware('committee')->name('dashboard.show');
 
         Route::get('/members', [MemberController::class, 'index'])->middleware('can:view-members')->name('members.index');
@@ -198,40 +256,7 @@ Route::middleware('auth')->prefix('admin')->name('admin.')->group(function (): v
         Route::post('/branding/logo', [BrandingController::class, 'store'])->middleware('can:manage-branding')->name('branding.store');
         Route::delete('/branding/logo', [BrandingController::class, 'destroy'])->middleware('can:manage-branding')->name('branding.destroy');
 
-        Route::prefix('profile/two-factor')->name('profile.two-factor.')->group(function (): void {
-            Route::get('/', [TwoFactorSettingsController::class, 'show'])->name('show');
-            Route::post('/authenticator/setup', [TwoFactorSettingsController::class, 'startAuthenticator'])->name('authenticator.setup');
-            Route::post('/authenticator/confirm', [TwoFactorSettingsController::class, 'confirmAuthenticator'])->name('authenticator.confirm');
-            Route::post('/email/send', [TwoFactorSettingsController::class, 'sendEmailCode'])->name('email.send');
-            Route::post('/email/confirm', [TwoFactorSettingsController::class, 'confirmEmail'])->name('email.confirm');
-            Route::post('/email/disable-code', [TwoFactorSettingsController::class, 'sendDisableEmailCode'])->name('email.disable-code');
-            Route::delete('/{method}', [TwoFactorSettingsController::class, 'disable'])->name('disable');
-        });
-
-        Route::prefix('profile')->name('profile.')->group(function (): void {
-            Route::get('/', [ProfileController::class, 'show'])->name('show');
-            Route::put('/', [ProfileController::class, 'update'])->name('update');
-            Route::put('/password', [ProfileController::class, 'updatePassword'])->name('password');
-            Route::post('/avatar', [ProfileController::class, 'storeAvatar'])->name('avatar.store');
-            Route::delete('/avatar', [ProfileController::class, 'destroyAvatar'])->name('avatar.destroy');
-            Route::put('/business', [ProfileController::class, 'updateBusiness'])->name('business');
-            Route::post('/business/document', [ProfileController::class, 'storeBusinessDocument'])->name('business.document.store');
-            Route::get('/business/document', [ProfileController::class, 'showBusinessDocument'])->name('business.document.show');
-            Route::post('/business/submit', [ProfileController::class, 'submitBusiness'])->name('business.submit');
-        });
-
-        Route::prefix('votes')->name('votes.')->group(function (): void {
-            Route::get('/', [VoteController::class, 'index'])->name('index');
-            Route::post('/', [VoteController::class, 'store'])->name('store');
-            Route::get('/voters', [VoteController::class, 'voters'])->name('voters');
-            Route::get('/positions', [VoteController::class, 'positions'])->name('positions');
-            Route::get('/creators', [VoteController::class, 'creators'])->middleware('can:manage-accounts')->name('creators');
-            Route::put('/creators/{user}', [VoteController::class, 'setCreator'])->middleware('can:manage-accounts')->name('creators.update');
-            Route::put('/{vote}', [VoteController::class, 'update'])->name('update');
-            Route::post('/{vote}/close', [VoteController::class, 'close'])->name('close');
-            Route::post('/{vote}/cancel', [VoteController::class, 'cancel'])->name('cancel');
-            Route::post('/{vote}/ballot', [VoteController::class, 'cast'])->name('cast');
-        });
+        $selfServiceApi();
 
         Route::get('/invitations', [InvitationController::class, 'index'])
             ->middleware('can:manage-invitations')

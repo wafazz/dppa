@@ -38,7 +38,7 @@
                     </ul>
                 </li>
                 <li class="nav-item header-account">
-                    <a class="nav-link d-flex align-items-center gap-2 flex-nowrap" href="{{ route('admin.profile.index') }}">
+                    <a class="nav-link d-flex align-items-center gap-2 flex-nowrap" href="{{ route(auth()->user()->isMember() ? 'member.profile.index' : 'admin.profile.index') }}">
                         @php($avatarUrl = app(\App\Services\Avatar::class)->url(auth()->user()))
                         @if ($avatarUrl)
                             <img src="{{ $avatarUrl }}" alt="" class="rounded-circle avatar-thumb">
@@ -72,7 +72,7 @@
     @php($logoUrl = app(\App\Services\Branding::class)->logoUrl())
     <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand {{ $logoUrl ? 'brand-with-logo' : '' }}">
-            <a href="{{ route('admin.dashboard') }}" class="brand-link">
+            <a href="{{ route(auth()->user()->isMember() ? 'member.home' : 'admin.dashboard') }}" class="brand-link">
                 @if ($logoUrl)
                     <img src="{{ $logoUrl }}" alt="{{ __('app.nav.brand') }}" class="brand-logo-img">
                 @else
@@ -103,7 +103,7 @@
                             <strong>{{ __('app.two_factor.banner_title') }}</strong>
                             <span class="d-block d-sm-inline">{{ __('app.two_factor.banner_text') }}</span>
                         </div>
-                        <a class="btn btn-sm btn-warning" href="{{ route('admin.profile.index') }}">{{ __('app.two_factor.banner_action') }}</a>
+                        <a class="btn btn-sm btn-warning" href="{{ route(auth()->user()->isMember() ? 'member.profile.index' : 'admin.profile.index') }}">{{ __('app.two_factor.banner_action') }}</a>
                     </div>
                 @endif
 

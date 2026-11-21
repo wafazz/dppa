@@ -5,7 +5,7 @@ import ProfilePersonalModal from '../components/forms/ProfilePersonalModal.vue';
 import ProfileBusinessModal from '../components/forms/ProfileBusinessModal.vue';
 import PasswordStrengthMeter from '../components/forms/PasswordStrengthMeter.vue';
 import TwoFactorCard from '../components/forms/TwoFactorCard.vue';
-import { api, ApiError, firstError } from '../lib/http';
+import { api, ApiError, apiPath, firstError } from '../lib/http';
 import { confirmAction, notifyError, notifySuccess } from '../lib/feedback';
 import { formatDate } from '../lib/format';
 import { t } from '../lib/i18n';
@@ -167,7 +167,7 @@ onMounted(load);
                             <dd class="col-7">{{ profile.business_phone || t('app.profile.not_provided') }}</dd>
                             <dt class="col-5">{{ t('app.profile.business_ssm_title') }}</dt>
                             <dd class="col-7">
-                                <a v-if="profile.has_business_document" href="/admin/api/profile/business/document" target="_blank" rel="noopener">
+                                <a v-if="profile.has_business_document" :href="apiPath('/admin/api/profile/business/document')" target="_blank" rel="noopener">
                                     {{ t('app.profile.business_ssm_view') }}
                                 </a>
                                 <span v-else class="text-body-secondary">{{ t('app.profile.business_ssm_none') }}</span>

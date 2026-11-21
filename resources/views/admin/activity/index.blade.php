@@ -9,7 +9,7 @@
             {{ $isManagement ? __('app.activity.intro_all') : __('app.activity.intro_own') }}
         </p>
 
-        <form method="GET" action="{{ route('admin.activity.index') }}" class="row g-2 align-items-end" novalidate>
+        <form method="GET" action="{{ route($indexRoute) }}" class="row g-2 align-items-end" novalidate>
             @if ($isManagement)
                 <div class="col-12 col-md-3">
                     <label class="form-label small mb-1" for="filter-account">{{ __('app.activity.filter_user') }}</label>
@@ -44,7 +44,7 @@
             </div>
             <div class="col-12 col-md-2 d-flex gap-2">
                 <button type="submit" class="btn btn-primary flex-fill">{{ __('app.activity.filter_apply') }}</button>
-                <a href="{{ route('admin.activity.index') }}" class="btn btn-outline-secondary">{{ __('app.activity.filter_reset') }}</a>
+                <a href="{{ route($indexRoute) }}" class="btn btn-outline-secondary">{{ __('app.activity.filter_reset') }}</a>
             </div>
         </form>
     </div>

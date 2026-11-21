@@ -461,6 +461,7 @@ return [
 
     'validation' => [
         'members_only_pages' => 'Halaman ini untuk akaun jawatankuasa.',
+        'admin_area_only' => 'Halaman ini untuk akaun jawatankuasa. Akaun ahli menggunakan ruang ahli.',
         'field_required' => 'Medan ini wajib diisi.',
         'reason_required' => 'Sila nyatakan sebab penolakan.',
         'status_already' => 'Status ahli sudah :status.',

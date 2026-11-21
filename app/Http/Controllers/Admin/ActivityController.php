@@ -53,6 +53,7 @@ class ActivityController extends Controller
         $entries = $query->orderByDesc('occurred_at')->orderByDesc('id')->paginate(self::PER_PAGE)->withQueryString();
 
         return view('admin.activity.index', [
+            'indexRoute' => request()->user()->isMember() ? 'member.activity.index' : 'admin.activity.index',
             'entries' => $entries,
             'isManagement' => $isManagement,
             'accounts' => $isManagement

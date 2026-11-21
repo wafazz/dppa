@@ -116,13 +116,16 @@ class MemberAccountTest extends TestCase
         $account = User::query()->where('member_id', $member->id)->firstOrFail();
         $account->forceFill(['password' => self::PASSWORD])->save();
 
-        $this->actingAs($account)->get(route('admin.dashboard'))->assertRedirect(route('admin.votes.index'));
-        $this->actingAs($account)->get(route('admin.positions.index'))->assertRedirect(route('admin.votes.index'));
-        $this->actingAs($account)->get(route('admin.members.index'))->assertForbidden();
+        $this->actingAs($account)->get(route('admin.dashboard'))->assertRedirect(route('member.home'));
+        $this->actingAs($account)->get(route('admin.positions.index'))->assertRedirect(route('member.home'));
+        $this->actingAs($account)->get(route('admin.members.index'))->assertRedirect(route('member.home'));
         $this->actingAs($account)->getJson(route('admin.api.members.index'))->assertForbidden();
         $this->actingAs($account)->getJson(route('admin.api.dashboard.show'))->assertForbidden();
-        $this->actingAs($account)->get(route('admin.votes.index'))->assertOk();
-        $this->actingAs($account)->get(route('admin.profile.index'))->assertOk();
+        $this->actingAs($account)->get(route('member.votes.index'))->assertOk();
+        $this->actingAs($account)->get(route('admin.profile.index'))->assertRedirect(route('member.home'));
+        $this->actingAs($account)->get(route('member.profile.index'))->assertOk();
+        $this->actingAs($account)->getJson(route('admin.api.profile.show'))->assertForbidden();
+        $this->actingAs($account)->getJson(route('member.api.profile.show'))->assertOk();
     }
 
     public function test_member_accounts_are_not_listed_among_system_accounts(): void
@@ -135,5 +138,19 @@ class MemberAccountTest extends TestCase
 
         $this->assertFalse($accounts->contains('name', 'Ahli Bernama'));
         $this->assertTrue($accounts->contains('name', 'Pentadbir Utama'));
+    }
+
+    public function test_member_sidebar_and_pages_use_the_member_area_not_admin(): void
+    {
+        $member = User::factory()->create(['account_type' => 'member', 'role' => null, 'password' => self::PASSWORD]);
+
+        $page = $this->actingAs($member)->get(route('member.votes.index'))->assertOk();
+
+        $page->assertSee('href="'.route('member.votes.index').'"', false);
+        $page->assertSee('href="'.route('member.profile.index').'"', false);
+        $page->assertSee('href="'.route('member.activity.index').'"', false);
+        $page->assertDontSee('href="'.route('admin.votes.index').'"', false);
+        $page->assertDontSee('href="'.route('admin.profile.index').'"', false);
+        $page->assertDontSee('href="'.route('admin.activity.index').'"', false);
     }
 }

@@ -61,13 +61,16 @@ class SidebarMenu
 
         $committee = ! $user->isMember();
 
+        // Members see their own pages under /member; everyone else uses /admin.
+        $area = $user->isMember() ? 'member' : 'admin';
+
         $items = [
             $this->item(__('app.nav.dashboard'), 'dashboard', route('admin.dashboard'), request()->routeIs('admin.dashboard'), visible: $committee),
             $this->item(
                 __('app.nav.profile'),
                 'profile',
-                route('admin.profile.index'),
-                request()->routeIs('admin.profile.*'),
+                route($area.'.profile.index'),
+                request()->routeIs($area.'.profile.*'),
                 // Shows 1 until the account has a two-factor sign-in method switched on.
                 badge: app(TwoFactorService::class)->enabledMethods($user) === [] ? 1 : 0,
                 badgeClass: 'text-bg-warning',
@@ -133,22 +136,22 @@ class SidebarMenu
             $this->item(
                 __('app.nav.votes'),
                 'votes',
-                route('admin.votes.index'),
-                request()->routeIs('admin.votes.*'),
+                route($area.'.votes.index'),
+                request()->routeIs($area.'.votes.*'),
                 // Votes this account can take part in and has not yet voted in.
                 badge: $this->votesWaiting($user),
                 badgeClass: 'text-bg-warning',
                 children: [
-                    $this->child(__('app.nav.votes_all'), route('admin.votes.index'), $this->inSection('admin.votes.*', 'status', null)),
-                    $this->child(__('app.nav.votes_open'), route('admin.votes.index', ['status' => 'open']), $this->inSection('admin.votes.*', 'status', 'open')),
-                    $this->child(__('app.nav.votes_closed'), route('admin.votes.index', ['status' => 'closed']), $this->inSection('admin.votes.*', 'status', 'closed')),
+                    $this->child(__('app.nav.votes_all'), route($area.'.votes.index'), $this->inSection($area.'.votes.*', 'status', null)),
+                    $this->child(__('app.nav.votes_open'), route($area.'.votes.index', ['status' => 'open']), $this->inSection($area.'.votes.*', 'status', 'open')),
+                    $this->child(__('app.nav.votes_closed'), route($area.'.votes.index', ['status' => 'closed']), $this->inSection($area.'.votes.*', 'status', 'closed')),
                 ],
             ),
             $this->item(
                 __('app.nav.activity'),
                 'activity',
-                route('admin.activity.index'),
-                request()->routeIs('admin.activity.*'),
+                route($area.'.activity.index'),
+                request()->routeIs($area.'.activity.*'),
             ),
             $this->item(
                 __('app.nav.settings'),
