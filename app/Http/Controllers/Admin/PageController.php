@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Member;
+use App\Services\MemberDashboard;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\View\View;
 
@@ -23,6 +24,14 @@ class PageController extends Controller
     public function members(): View
     {
         return $this->page('admin.members.index');
+    }
+
+    /**
+     * The member's own dashboard: membership, votes waiting for them and their recent activity.
+     */
+    public function memberDashboard(MemberDashboard $dashboard): View
+    {
+        return view('member.dashboard', ['dashboard' => $dashboard->build(request()->user())]);
     }
 
     /**

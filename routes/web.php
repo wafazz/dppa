@@ -140,7 +140,7 @@ $selfServiceApi = function (): void {
 |--------------------------------------------------------------------------
 */
 Route::middleware(['auth', 'members-only'])->prefix('member')->name('member.')->group(function () use ($selfServiceApi): void {
-    Route::get('/', fn () => redirect()->route('member.votes.index'))->name('home');
+    Route::get('/', [PageController::class, 'memberDashboard'])->name('home');
     Route::get('/votes', [PageController::class, 'votes'])->name('votes.index');
     Route::get('/profile', [PageController::class, 'profile'])->name('profile.index');
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');

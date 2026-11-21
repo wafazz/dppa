@@ -65,7 +65,12 @@ class SidebarMenu
         $area = $user->isMember() ? 'member' : 'admin';
 
         $items = [
-            $this->item(__('app.nav.dashboard'), 'dashboard', route('admin.dashboard'), request()->routeIs('admin.dashboard'), visible: $committee),
+            $this->item(
+                __('app.nav.dashboard'),
+                'dashboard',
+                $committee ? route('admin.dashboard') : route('member.home'),
+                $committee ? request()->routeIs('admin.dashboard') : request()->routeIs('member.home'),
+            ),
             $this->item(
                 __('app.nav.profile'),
                 'profile',
