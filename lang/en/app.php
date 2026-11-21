@@ -166,6 +166,22 @@ return [
             'set_intro' => 'Choose a password of at least 12 characters to activate your membership account.',
             'set_save' => 'Save password',
         ],
+        'upgrade' => [
+            'button' => 'Upgrade',
+            'title' => 'Upgrade to system account',
+            'intro' => 'This member keeps the same sign-in and password, and the account appears under System accounts.',
+            'field_type' => 'Account type',
+            'type_staff' => 'Staff',
+            'type_admin' => 'Admin',
+            'field_role' => 'Access role',
+            'field_position' => 'Management position',
+            'can_invite' => 'Can create registration invitations',
+            'confirm_title' => 'Upgrade this member?',
+            'confirm_text' => 'The member becomes a system account with the access you choose.',
+            'done' => 'Member upgraded. The account is now under System accounts.',
+            'no_account' => 'This member has no login account yet. Create the account and set the password first.',
+            'password_first' => 'The member has not set a password yet. Send the set-up link and wait until they set it.',
+        ],
         'verification' => [
             'badge_verified' => 'E-mail verified',
             'badge_unverified' => 'E-mail not verified',
@@ -627,6 +643,7 @@ return [
             ],
             'account' => [
                 'setup_link_sent' => 'Set-up link sent',
+                'upgraded' => 'Member upgraded to a system account',
             ],
             'auth' => [
                 'login' => 'Signed in',

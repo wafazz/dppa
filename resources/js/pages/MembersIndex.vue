@@ -2,12 +2,20 @@
 import { computed, onMounted, reactive, ref, watch } from 'vue';
 import AppSelect2 from '../components/AppSelect2.vue';
 import { api, buildQuery } from '../lib/http';
+import UpgradeMemberModal from '../components/forms/UpgradeMemberModal.vue';
 import { formatDate, statusBadgeClass, statusOptions } from '../lib/format';
 import { t } from '../lib/i18n';
 
 const props = defineProps({
     can: { type: Object, default: () => ({}) },
+    currentUser: { type: Object, default: () => ({}) },
 });
+
+const upgradeTarget = ref(null);
+
+function openUpgrade(member) {
+    upgradeTarget.value = member;
+}
 
 const SORTABLE_COLUMNS = [
     { key: 'member_no', label: t('app.members.columns.member_no') },
@@ -243,7 +251,9 @@ onMounted(() => {
                                 <td class="text-nowrap">{{ formatDate(member.applied_at) }}</td>
                                 <td class="text-nowrap">{{ formatDate(member.approved_at) }}</td>
                                 <td class="text-end">
-                                    <a class="btn btn-sm btn-outline-primary" :href="`/admin/members/${member.id}`">{{ t('app.common.view') }}</a>
+                                    <button v-if="can.manageAccounts && member.can_upgrade" type="button" class="btn btn-sm btn-outline-success me-1"
+                                        @click="openUpgrade(member)">{{ t('app.members.upgrade.button') }}</button>
+                                <a class="btn btn-sm btn-outline-primary" :href="`/admin/members/${member.id}`">{{ t('app.common.view') }}</a>
                                 </td>
                             </tr>
                         </template>
@@ -260,4 +270,7 @@ onMounted(() => {
             </div>
         </div>
     </div>
+
+    <UpgradeMemberModal :open="upgradeTarget !== null" :member="upgradeTarget" :is-superadmin="!!currentUser.isSuperadmin"
+                        @close="upgradeTarget = null" @saved="load" />
 </template>

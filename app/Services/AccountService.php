@@ -6,6 +6,7 @@ use App\Enums\AccountType;
 use App\Enums\UserRole;
 use App\Models\AccountPosition;
 use App\Models\Invitation;
+use App\Models\Member;
 use App\Models\User;
 use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Support\Carbon;
@@ -20,7 +21,10 @@ use Illuminate\Validation\ValidationException;
  */
 class AccountService
 {
-    public function __construct(private EmailNotices $notices) {}
+    public function __construct(
+        private EmailNotices $notices,
+        private ActivityLogger $activity,
+    ) {}
 
     /**
      * Whether the actor may change the target account.
@@ -137,6 +141,49 @@ class AccountService
         }
 
         return $target->refresh();
+    }
+
+    /**
+     * Turns an approved member's login account into a committee account, so it appears under System accounts.
+     * The member keeps the same sign-in and password. Only a superadmin can make an admin account.
+     *
+     * @param  array<string, mixed>  $data
+     *
+     * @throws AuthorizationException|ValidationException
+     */
+    public function upgradeMember(User $actor, Member $member, array $data): User
+    {
+        $type = AccountType::from((string) $data['account_type']);
+
+        if ($type === AccountType::Admin && ! $actor->isSuperadmin()) {
+            throw new AuthorizationException(__('app.validation.admin_only'));
+        }
+
+        $account = User::query()->where('member_id', $member->id)->first();
+
+        if ($account === null || ! $account->isMember()) {
+            throw ValidationException::withMessages(['account' => __('app.members.upgrade.no_account')]);
+        }
+
+        if ($account->password === null) {
+            throw ValidationException::withMessages(['account' => __('app.members.upgrade.password_first')]);
+        }
+
+        $attributes = ['account_type' => $type] + $this->staffAttributes($actor, $type, $data);
+
+        return DB::transaction(function () use ($actor, $account, $attributes, $type): User {
+            $account->update($attributes);
+
+            $this->activity->record(
+                'account.upgraded',
+                $type->value,
+                $actor,
+                $account,
+                ['from' => AccountType::Member->value, 'to' => $type->value],
+            );
+
+            return $account->refresh();
+        });
     }
 
     /**

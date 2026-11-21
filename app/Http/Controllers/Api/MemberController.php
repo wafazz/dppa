@@ -7,8 +7,10 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\MemberFilterRequest;
 use App\Http\Requests\ReviewMemberRequest;
 use App\Http\Requests\UpdateMemberRequest;
+use App\Http\Requests\UpgradeMemberRequest;
 use App\Http\Resources\MemberResource;
 use App\Models\Member;
+use App\Services\AccountService;
 use App\Services\DuplicateMemberFinder;
 use App\Services\HtmlSanitizer;
 use App\Services\MemberAccountService;
@@ -30,7 +32,7 @@ class MemberController extends Controller
     public function index(MemberFilterRequest $request): AnonymousResourceCollection
     {
         $members = Member::query()
-            ->with('category')
+            ->with(['category', 'account'])
             ->filter($request->filters())
             ->orderBy($request->sortColumn(), $request->sortDirection())
             ->orderBy('id')
@@ -95,6 +97,20 @@ class MemberController extends Controller
         }
 
         return response()->json(['data' => $result]);
+    }
+
+    /**
+     * Turns an approved member's login account into a staff or admin account (management accounts only).
+     */
+    public function upgrade(UpgradeMemberRequest $request, Member $member, AccountService $accounts): JsonResponse
+    {
+        try {
+            $account = $accounts->upgradeMember($request->user(), $member, $request->validated());
+        } catch (ValidationException $exception) {
+            return response()->json(['message' => $exception->validator->errors()->first('account'), 'errors' => $exception->errors()], 422);
+        }
+
+        return response()->json(['message' => __('app.members.upgrade.done'), 'data' => ['id' => $account->id, 'account_type' => $account->account_type->value]]);
     }
 
     /**

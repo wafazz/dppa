@@ -2,6 +2,7 @@
 
 namespace App\Http\Resources;
 
+use App\Enums\MemberStatus;
 use App\Models\Member;
 use App\Services\HtmlSanitizer;
 use Illuminate\Http\Request;
@@ -43,6 +44,11 @@ class MemberResource extends JsonResource
                 'business_status' => $this->account->businessStatus(),
                 'has_business_document' => $this->account->business_document_path !== null,
             ]),
+            // Management can upgrade an approved member whose login account has a password.
+            'can_upgrade' => $this->status === MemberStatus::Approved
+                && $this->relationLoaded('account')
+                && $this->account?->isMember() === true
+                && $this->account?->password !== null,
             'status' => $this->status->value,
             'status_label' => $this->status->label(),
             'applied_at' => $this->applied_at?->toIso8601String(),

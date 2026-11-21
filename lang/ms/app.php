@@ -165,6 +165,22 @@ return [
             'set_intro' => 'Pilih kata laluan sekurang-kurangnya 12 aksara untuk mengaktifkan akaun keahlian anda.',
             'set_save' => 'Simpan kata laluan',
         ],
+        'upgrade' => [
+            'button' => 'Naik taraf',
+            'title' => 'Naik taraf ke akaun sistem',
+            'intro' => 'Ahli ini kekal dengan log masuk dan kata laluan yang sama, dan akaun itu muncul di bawah Akaun sistem.',
+            'field_type' => 'Jenis akaun',
+            'type_staff' => 'Kakitangan',
+            'type_admin' => 'Pentadbir',
+            'field_role' => 'Peranan akses',
+            'field_position' => 'Jawatan pengurusan',
+            'can_invite' => 'Boleh mencipta jemputan pendaftaran',
+            'confirm_title' => 'Naik taraf ahli ini?',
+            'confirm_text' => 'Ahli menjadi akaun sistem dengan akses yang anda pilih.',
+            'done' => 'Ahli telah dinaik taraf. Akaun kini berada di bawah Akaun sistem.',
+            'no_account' => 'Ahli ini belum mempunyai akaun log masuk. Cipta akaun dan tetapkan kata laluan dahulu.',
+            'password_first' => 'Ahli belum menetapkan kata laluan. Hantar pautan persediaan dan tunggu sehingga mereka menetapkannya.',
+        ],
         'verification' => [
             'badge_verified' => 'E-mel telah disahkan',
             'badge_unverified' => 'E-mel belum disahkan',
@@ -626,6 +642,7 @@ return [
             ],
             'account' => [
                 'setup_link_sent' => 'Pautan persediaan dihantar',
+                'upgraded' => 'Ahli dinaik taraf ke akaun sistem',
             ],
             'auth' => [
                 'login' => 'Log masuk',

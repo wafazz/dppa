@@ -184,6 +184,9 @@ Route::middleware(['auth', 'not-member'])->prefix('admin')->name('admin.')->grou
         Route::post('/members/{member}/status', [MemberController::class, 'review'])
             ->middleware('can:manage-members')
             ->name('members.review');
+        Route::post('/members/{member}/upgrade', [MemberController::class, 'upgrade'])
+            ->middleware('can:manage-accounts')
+            ->name('members.upgrade');
         Route::post('/members/{member}/verification/resend', [MemberController::class, 'resendVerification'])
             ->middleware('can:manage-members')
             ->name('members.verification.resend');
