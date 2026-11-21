@@ -153,4 +153,13 @@ class MemberAccountTest extends TestCase
         $page->assertDontSee('href="'.route('admin.profile.index').'"', false);
         $page->assertDontSee('href="'.route('admin.activity.index').'"', false);
     }
+
+    public function test_members_can_load_every_api_the_profile_page_uses(): void
+    {
+        $member = User::factory()->create(['account_type' => 'member', 'role' => null, 'password' => self::PASSWORD]);
+
+        $this->actingAs($member)->getJson(route('member.api.profile.show'))->assertOk();
+        $this->actingAs($member)->getJson(route('member.api.categories.index'))->assertOk();
+        $this->actingAs($member)->getJson(route('member.api.profile.two-factor.show'))->assertOk();
+    }
 }

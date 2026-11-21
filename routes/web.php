@@ -146,6 +146,9 @@ Route::middleware(['auth', 'members-only'])->prefix('member')->name('member.')->
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
 
     Route::prefix('api')->name('api.')->group(function () use ($selfServiceApi): void {
+        // The profile page needs the business category list.
+        Route::get('/categories', [BusinessCategoryController::class, 'index'])->name('categories.index');
+
         $selfServiceApi();
     });
 });
