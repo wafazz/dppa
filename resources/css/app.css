@@ -164,6 +164,22 @@
     line-height: 1.25;
 }
 
+/* Header on phones: the account area shrinks and never pushes the logout button off the screen. */
+.app-header .navbar-nav {
+    flex-wrap: nowrap;
+    min-width: 0;
+}
+.app-header .header-account {
+    min-width: 0;
+}
+.app-header .header-account .nav-link {
+    min-width: 0;
+    white-space: nowrap;
+}
+.app-header .header-name {
+    max-width: 180px;
+}
+
 /* Display picture in the header: a small round thumbnail, or the account initial when there is none. */
 .avatar-thumb {
     width: 28px;

@@ -37,30 +37,31 @@
                         </li>
                     </ul>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link d-flex align-items-center gap-2" href="{{ route('admin.profile.index') }}">
+                <li class="nav-item header-account">
+                    <a class="nav-link d-flex align-items-center gap-2 flex-nowrap" href="{{ route('admin.profile.index') }}">
                         @php($avatarUrl = app(\App\Services\Avatar::class)->url(auth()->user()))
                         @if ($avatarUrl)
                             <img src="{{ $avatarUrl }}" alt="" class="rounded-circle avatar-thumb">
                         @else
                             <span class="rounded-circle avatar-thumb avatar-initial d-inline-flex align-items-center justify-content-center">{{ mb_strtoupper(mb_substr(auth()->user()->name, 0, 1)) }}</span>
                         @endif
-                        {{ auth()->user()->name }}
-                        <span class="badge text-bg-secondary ms-1">{{ auth()->user()->account_type->label() }}</span>
+                        {{-- Small screens show only the avatar; the full name and badges appear from the medium breakpoint. --}}
+                        <span class="d-none d-md-inline header-name text-truncate">{{ auth()->user()->name }}</span>
+                        <span class="badge text-bg-secondary d-none d-lg-inline-block">{{ auth()->user()->account_type->label() }}</span>
                         @if (auth()->user()->isStaff())
-                            <span class="badge text-bg-light ms-1">{{ auth()->user()->role->label() }}</span>
+                            <span class="badge text-bg-light d-none d-lg-inline-block">{{ auth()->user()->role->label() }}</span>
                         @endif
                         @if (auth()->user()->accountPosition)
-                            <span class="badge text-bg-info ms-1">{{ auth()->user()->accountPosition->name_bm }}</span>
+                            <span class="badge text-bg-info d-none d-lg-inline-block">{{ auth()->user()->accountPosition->name_bm }}</span>
                         @endif
                     </a>
                 </li>
                 <li class="nav-item">
                     <form method="POST" action="{{ route('logout') }}" class="px-2" data-turbo="false">
                         @csrf
-                        <button type="submit" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary d-flex align-items-center gap-1" aria-label="{{ __('app.nav.logout') }}">
                             @include('layouts.partials.nav-icon', ['name' => 'logout'])
-                            {{ __('app.nav.logout') }}
+                            <span class="d-none d-md-inline">{{ __('app.nav.logout') }}</span>
                         </button>
                     </form>
                 </li>
