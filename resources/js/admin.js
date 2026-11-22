@@ -11,6 +11,9 @@ import ProfileIndex from './pages/ProfileIndex.vue';
 import VotesIndex from './pages/VotesIndex.vue';
 import EmailTemplatesIndex from './pages/EmailTemplatesIndex.vue';
 import AnnouncementsIndex from './pages/AnnouncementsIndex.vue';
+import FeesIndex from './pages/FeesIndex.vue';
+import InvoicesIndex from './pages/InvoicesIndex.vue';
+import PaymentSettingsIndex from './pages/PaymentSettingsIndex.vue';
 
 /*
  * Each committee page renders a placeholder element with data-vue and JSON data-props.
@@ -32,6 +35,9 @@ const components = {
     'votes-index': VotesIndex,
     'email-templates-index': EmailTemplatesIndex,
     'announcements-index': AnnouncementsIndex,
+    'fees-index': FeesIndex,
+    'invoices-index': InvoicesIndex,
+    'payment-settings-index': PaymentSettingsIndex,
 };
 
 let mountedApps = [];

@@ -27,6 +27,30 @@ class PageController extends Controller
     }
 
     /**
+     * Membership fee types (administrators only).
+     */
+    public function fees(): View
+    {
+        return $this->page('admin.fees.index');
+    }
+
+    /**
+     * Invoices, payments and the billing summary.
+     */
+    public function invoices(): View
+    {
+        return $this->page('admin.invoices.index');
+    }
+
+    /**
+     * Chamber bank details and billing rules (administrators only).
+     */
+    public function paymentSettings(): View
+    {
+        return $this->page('admin.payment-settings.index');
+    }
+
+    /**
      * The member's own dashboard: membership, votes waiting for them and their recent activity.
      */
     public function memberDashboard(MemberDashboard $dashboard): View

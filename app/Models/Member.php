@@ -79,6 +79,16 @@ class Member extends Model
     }
 
     /**
+     * Membership fees issued to the member.
+     *
+     * @return HasMany<MembershipInvoice, $this>
+     */
+    public function invoices(): HasMany
+    {
+        return $this->hasMany(MembershipInvoice::class);
+    }
+
+    /**
      * Get the status history of the member, newest first.
      *
      * @return HasMany<MemberStatusLog, $this>

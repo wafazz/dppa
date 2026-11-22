@@ -153,6 +153,24 @@ class SidebarMenu
                 ],
             ),
             $this->item(
+                __('app.nav.billing'),
+                'billing',
+                route('admin.invoices.index'),
+                request()->routeIs('admin.invoices.*', 'admin.fees.*'),
+                visible: ! $user->isMember() && Gate::forUser($user)->allows('manage-members'),
+                children: [
+                    $this->child(__('app.nav.invoices'), route('admin.invoices.index'), request()->routeIs('admin.invoices.*')),
+                    $this->child(__('app.nav.fee_types'), route('admin.fees.index'), request()->routeIs('admin.fees.*')),
+                ],
+            ),
+            $this->item(
+                __('app.nav.my_invoices'),
+                'billing',
+                route('member.invoices.index'),
+                request()->routeIs('member.invoices.*'),
+                visible: $user->isMember(),
+            ),
+            $this->item(
                 __('app.nav.activity'),
                 'activity',
                 route($area.'.activity.index'),
@@ -168,6 +186,7 @@ class SidebarMenu
                     $this->child(__('app.nav.settings'), route('admin.settings.index'), request()->routeIs('admin.settings.*')),
                     $this->child(__('app.nav.email_templates'), route('admin.email-templates.index'), request()->routeIs('admin.email-templates.*')),
                     $this->child(__('app.nav.announcements'), route('admin.announcements.index'), request()->routeIs('admin.announcements.*')),
+                    $this->child(__('app.nav.payment_settings'), route('admin.payment-settings.index'), request()->routeIs('admin.payment-settings.*')),
                 ],
             ),
         ];

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\AccountType;
 use App\Enums\MemberStatus;
 use App\Models\Member;
+use App\Models\MembershipInvoice;
 use App\Models\PositionAppointment;
 use App\Models\User;
 use App\Models\Vote;
@@ -27,6 +28,7 @@ class ScheduledNotices
         private EmailNotices $notices,
         private MemberEmailVerificationService $verification,
         private IntegrationSettings $settings,
+        private PaymentSettings $payments,
     ) {}
 
     /**
@@ -47,6 +49,7 @@ class ScheduledNotices
             'votes_opened' => $this->votesOpened(),
             'votes_closing' => $this->votesClosing(),
             'votes_results' => $this->votesResults(),
+            'payment_reminders' => $this->paymentReminders(),
         ];
     }
 
@@ -245,6 +248,44 @@ class ScheduledNotices
                     });
 
                 $vote->forceFill(['results_notified_at' => now()])->save();
+            });
+
+        return $sent;
+    }
+
+    /**
+     * Each overdue invoice gets one reminder, sent once the chosen number of days after its due date has passed.
+     */
+    private function paymentReminders(): int
+    {
+        $afterDays = (int) $this->payments->all()['reminder_after_days'];
+        $sent = 0;
+
+        MembershipInvoice::query()
+            ->with(['member', 'feeType'])
+            ->open()
+            ->whereNull('reminded_at')
+            ->where('due_on', '<', today()->subDays($afterDays))
+            ->get()
+            ->each(function (MembershipInvoice $invoice) use (&$sent): void {
+                $member = $invoice->member;
+
+                if ($member === null || $member->email === null) {
+                    return;
+                }
+
+                $delivered = $this->notices->deliver('payment_overdue', (string) $member->email, [
+                    'name' => $member->applicant_name,
+                    'fee' => (string) $invoice->feeType->name_bm,
+                    'amount' => Money::format($invoice->balanceCents(), (string) $this->payments->all()['currency_symbol']),
+                    'due' => $invoice->due_on->translatedFormat('j M Y'),
+                    'number' => (string) $invoice->number,
+                ], route('member.invoices.index'));
+
+                if ($delivered) {
+                    $invoice->forceFill(['reminded_at' => now()])->save();
+                    $sent++;
+                }
             });
 
         return $sent;

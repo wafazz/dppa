@@ -18,6 +18,7 @@ class MemberStatusService
     public function __construct(
         private MemberNumberGenerator $memberNumbers,
         private EmailNotices $notices,
+        private InvoiceService $invoices,
     ) {}
 
     /**
@@ -36,6 +37,10 @@ class MemberStatusService
             } catch (ValidationException) {
                 // Reported on the member page when the set-up link is requested.
             }
+        }
+
+        if ($newStatus === MemberStatus::Approved) {
+            $this->invoices->issueOnApproval($changed);
         }
 
         $this->notifyDecision($changed, $newStatus);

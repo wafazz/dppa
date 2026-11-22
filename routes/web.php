@@ -11,10 +11,14 @@ use App\Http\Controllers\Api\BusinessCategoryController;
 use App\Http\Controllers\Api\ChamberPositionController;
 use App\Http\Controllers\Api\DashboardController;
 use App\Http\Controllers\Api\EmailTemplateController;
+use App\Http\Controllers\Api\FeeTypeController;
 use App\Http\Controllers\Api\IntegrationSettingsController;
 use App\Http\Controllers\Api\InvitationController;
+use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\MemberExportController;
+use App\Http\Controllers\Api\PaymentController;
+use App\Http\Controllers\Api\PaymentSettingsController;
 use App\Http\Controllers\Api\PositionAppointmentController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\RegistrationSwitchController;
@@ -25,6 +29,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\SetPasswordController;
 use App\Http\Controllers\Auth\TwoFactorController;
 use App\Http\Controllers\LocaleController;
+use App\Http\Controllers\MemberBillingController;
 use App\Http\Controllers\RegistrationController;
 use App\Http\Controllers\RegistrationVerificationController;
 use Illuminate\Support\Facades\Route;
@@ -144,6 +149,7 @@ Route::middleware(['auth', 'members-only'])->prefix('member')->name('member.')->
     Route::get('/votes', [PageController::class, 'votes'])->name('votes.index');
     Route::get('/profile', [PageController::class, 'profile'])->name('profile.index');
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
+    Route::get('/invoices', [MemberBillingController::class, 'index'])->name('invoices.index');
 
     Route::prefix('api')->name('api.')->group(function () use ($selfServiceApi): void {
         // The profile page needs the business category list.
@@ -167,6 +173,9 @@ Route::middleware(['auth', 'not-member'])->prefix('admin')->name('admin.')->grou
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::get('/votes', [PageController::class, 'votes'])->name('votes.index');
     Route::get('/email-templates', [PageController::class, 'emailTemplates'])->middleware('can:manage-settings')->name('email-templates.index');
+    Route::get('/fees', [PageController::class, 'fees'])->middleware('can:manage-settings')->name('fees.index');
+    Route::get('/invoices', [PageController::class, 'invoices'])->middleware('can:manage-members')->name('invoices.index');
+    Route::get('/payment-settings', [PageController::class, 'paymentSettings'])->middleware('can:manage-settings')->name('payment-settings.index');
     Route::get('/announcements', [PageController::class, 'announcements'])->middleware('can:manage-settings')->name('announcements.index');
 
     Route::prefix('api')->name('api.')->group(function () use ($selfServiceApi): void {
@@ -187,6 +196,20 @@ Route::middleware(['auth', 'not-member'])->prefix('admin')->name('admin.')->grou
         Route::post('/members/{member}/status', [MemberController::class, 'review'])
             ->middleware('can:manage-members')
             ->name('members.review');
+        Route::get('/fee-types', [FeeTypeController::class, 'index'])->middleware('can:manage-members')->name('fee-types.index');
+        Route::post('/fee-types', [FeeTypeController::class, 'store'])->middleware('can:manage-settings')->name('fee-types.store');
+        Route::put('/fee-types/{feeType}', [FeeTypeController::class, 'update'])->middleware('can:manage-settings')->name('fee-types.update');
+
+        Route::get('/invoices', [InvoiceController::class, 'index'])->middleware('can:manage-members')->name('invoices.index');
+        Route::get('/invoices/summary', [InvoiceController::class, 'summary'])->middleware('can:manage-members')->name('invoices.summary');
+        Route::post('/invoices/generate', [InvoiceController::class, 'generate'])->middleware('can:manage-members')->name('invoices.generate');
+        Route::post('/invoices/{invoice}/payments', [InvoiceController::class, 'recordPayment'])->middleware('can:manage-members')->name('invoices.payments.store');
+        Route::post('/invoices/{invoice}/waive', [InvoiceController::class, 'waive'])->middleware('can:manage-accounts')->name('invoices.waive');
+        Route::post('/payments/{payment}/void', [PaymentController::class, 'void'])->middleware('can:manage-accounts')->name('payments.void');
+
+        Route::get('/payment-settings', [PaymentSettingsController::class, 'show'])->middleware('can:manage-settings')->name('payment-settings.show');
+        Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->middleware('can:manage-settings')->name('payment-settings.update');
+
         Route::post('/members/{member}/upgrade', [MemberController::class, 'upgrade'])
             ->middleware('can:manage-accounts')
             ->name('members.upgrade');

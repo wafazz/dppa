@@ -31,6 +31,9 @@ class EmailCatalog
         'vote_closing' => ['group' => 'votes', 'placeholders' => ['name', 'vote', 'closes', 'hours'], 'button' => true],
         'vote_results' => ['group' => 'votes', 'placeholders' => ['name', 'vote'], 'button' => true],
         'management_digest' => ['group' => 'digest', 'placeholders' => ['count'], 'button' => true],
+        'invoice_issued' => ['group' => 'billing', 'placeholders' => ['name', 'fee', 'amount', 'due', 'number'], 'button' => true],
+        'payment_received' => ['group' => 'billing', 'placeholders' => ['name', 'fee', 'amount', 'receipt', 'balance'], 'button' => true],
+        'payment_overdue' => ['group' => 'billing', 'placeholders' => ['name', 'fee', 'amount', 'due', 'number'], 'button' => true],
     ];
 
     /**
@@ -55,6 +58,12 @@ class EmailCatalog
         'days' => '30',
         'vote' => 'Pemilihan AJK 2027',
         'closes' => '31 Jan 2027, 17:00',
+        'fee' => 'Yuran tahunan 2027',
+        'amount' => 'RM 50.00',
+        'due' => '31 Jan 2027',
+        'number' => 'INV-2027-000001',
+        'receipt' => 'RCP-2027-000001',
+        'balance' => 'RM 0.00',
     ];
 
     /**
