@@ -72,7 +72,7 @@ class InvoiceController extends Controller
     public function generate(GenerateInvoicesRequest $request, InvoiceService $invoices): JsonResponse
     {
         $fee = FeeType::query()->findOrFail($request->integer('fee_type_id'));
-        $result = $invoices->generate($fee, $request->input('period'), $request->user());
+        $result = $invoices->generate($fee, (string) $request->input('period_type'), $request->input('period'), $request->user());
 
         return response()->json([
             'message' => __('app.billing.generate_done', $result),

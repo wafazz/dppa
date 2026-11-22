@@ -43,9 +43,10 @@ const methodOptions = computed(() => methods.value.map((method) => ({ id: method
 const dialog = ref(null);
 const dialogErrors = ref({});
 const saving = ref(false);
-const generateForm = reactive({ fee_type_id: '', year: String(new Date().getFullYear()), month: '' });
+const generateForm = reactive({ fee_type_id: '', period_type: '', year: String(new Date().getFullYear()), month: '' });
 const paymentForm = reactive({ amount: '', method: 'cash', reference: '', paid_on: '', note: '' });
 const reasonForm = reactive({ reason: '' });
+const claims = ref([]);
 const target = ref(null);
 
 const dialogTitle = computed(() => {
@@ -53,6 +54,7 @@ const dialogTitle = computed(() => {
     if (dialog.value === 'payment') return t('app.billing.payment_title', { number: target.value?.number ?? '' });
     if (dialog.value === 'waive') return t('app.billing.waive_title', { number: target.value?.number ?? '' });
     if (dialog.value === 'void') return t('app.billing.void_title', { receipt: target.value?.receipt ?? '' });
+    if (dialog.value === 'reject-claim') return t('app.billing.claim_reject_title', { number: target.value?.invoice_number ?? '' });
 
     return '';
 });
@@ -69,14 +71,22 @@ const monthOptions = computed(() => [
     })),
 ]);
 
-// The period sent to the server: "2027" for a year, "2027-03" for one month, null for a lifetime fee.
-const generatePeriod = computed(() => {
-    const fee = selectedGenerateFee.value;
+const periodTypeOptions = computed(() => (selectedGenerateFee.value?.periods ?? []).map((period) => ({
+    id: period,
+    text: t(`app.billing.period_name_${period}`),
+})));
 
-    if (!fee || fee.frequency === 'lifetime') return null;
-    if (fee.frequency === 'monthly' && generateForm.month !== '') return `${generateForm.year}-${generateForm.month}`;
+// The period sent to the server: "2027" for a year, "2027-03" for one month, null for a lifetime charge.
+const generatePeriod = computed(() => {
+    if (generateForm.period_type === 'lifetime') return null;
+    if (generateForm.period_type === 'monthly' && generateForm.month !== '') return `${generateForm.year}-${generateForm.month}`;
 
     return String(generateForm.year);
+});
+
+watch(() => generateForm.fee_type_id, () => {
+    generateForm.period_type = selectedGenerateFee.value?.periods?.[0] ?? '';
+    generateForm.month = '';
 });
 
 const fieldError = (name) => firstError(dialogErrors.value, name);
@@ -133,8 +143,36 @@ async function loadReference() {
     }
 }
 
+async function loadClaims() {
+    try {
+        const response = await api('/admin/api/payment-claims');
+        claims.value = response.data;
+    } catch (error) {
+        loadError.value = error.message;
+    }
+}
+
 async function refresh() {
-    await Promise.all([loadSummary(), loadInvoices()]);
+    await Promise.all([loadSummary(), loadInvoices(), loadClaims()]);
+}
+
+async function confirmClaim(claim) {
+    const confirmed = await confirmAction({ title: t('app.billing.claim_confirm_title'), text: t('app.billing.claim_confirm_text') });
+
+    if (!confirmed) return;
+
+    try {
+        const response = await api(`/admin/api/payment-claims/${claim.id}/confirm`, { method: 'POST' });
+        notifySuccess(response.message);
+        await refresh();
+    } catch (error) {
+        notifyError(error.message);
+    }
+}
+
+function openRejectClaim(claim) {
+    reasonForm.reason = '';
+    openDialog('reject-claim', claim);
 }
 
 function applyFilters() {
@@ -155,7 +193,7 @@ function openDialog(kind, subject = null) {
 }
 
 function openGenerate() {
-    Object.assign(generateForm, { fee_type_id: '', year: String(new Date().getFullYear()), month: '' });
+    Object.assign(generateForm, { fee_type_id: '', period_type: '', year: String(new Date().getFullYear()), month: '' });
     openDialog('generate');
 }
 
@@ -195,7 +233,7 @@ async function submitDialog() {
         if (dialog.value === 'generate') {
             const response = await api('/admin/api/invoices/generate', {
                 method: 'POST',
-                body: { fee_type_id: Number(generateForm.fee_type_id), period: generatePeriod.value },
+                body: { fee_type_id: Number(generateForm.fee_type_id), period_type: generateForm.period_type, period: generatePeriod.value },
             });
             notifySuccess(response.message);
         }
@@ -218,6 +256,14 @@ async function submitDialog() {
 
         if (dialog.value === 'void') {
             const response = await api(`/admin/api/payments/${target.value.id}/void`, {
+                method: 'POST',
+                body: { reason: reasonForm.reason },
+            });
+            notifySuccess(response.message);
+        }
+
+        if (dialog.value === 'reject-claim') {
+            const response = await api(`/admin/api/payment-claims/${target.value.id}/reject`, {
                 method: 'POST',
                 body: { reason: reasonForm.reason },
             });
@@ -288,6 +334,39 @@ onMounted(async () => {
                     <div class="small text-body-secondary">{{ t('app.billing.summary_no_invoice') }}</div>
                     <div class="fs-4 fw-semibold">{{ summary.members_without_invoices }}</div>
                 </div></div>
+            </div>
+        </div>
+
+        <div class="card mb-3" v-if="claims.length > 0">
+            <div class="card-header fw-semibold">{{ t('app.billing.claims_title', { count: claims.length }) }}</div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>{{ t('app.billing.col_member') }}</th>
+                            <th>{{ t('app.billing.col_number') }}</th>
+                            <th class="text-end">{{ t('app.billing.col_amount_due') }}</th>
+                            <th>{{ t('app.billing.field_method') }}</th>
+                            <th>{{ t('app.billing.field_paid_on') }}</th>
+                            <th>{{ t('app.billing.field_reference') }}</th>
+                            <th class="text-end">{{ t('app.billing.col_actions') }}</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="claim in claims" :key="claim.id">
+                            <td>{{ claim.member.name }} <span class="small text-body-secondary">{{ claim.member.member_no }}</span></td>
+                            <td class="small"><code>{{ claim.invoice_number }}</code> {{ claim.fee }}</td>
+                            <td class="text-end text-nowrap">{{ claim.amount_label }}</td>
+                            <td class="small">{{ t(`app.billing.method_${claim.method}`) }}</td>
+                            <td class="small text-nowrap">{{ claim.paid_on }}</td>
+                            <td class="small">{{ claim.reference ?? '—' }}</td>
+                            <td class="text-end text-nowrap">
+                                <button type="button" class="btn btn-sm btn-success me-1" @click="confirmClaim(claim)">{{ t('app.billing.claim_confirm') }}</button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" @click="openRejectClaim(claim)">{{ t('app.billing.claim_reject') }}</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -402,12 +481,17 @@ onMounted(async () => {
                                 <AppSelect2 id="gen-fee" v-model="generateForm.fee_type_id" :options="feeSelectOptions" :invalid="!!fieldError('fee_type_id')" />
                                 <div class="invalid-feedback d-block" v-if="fieldError('fee_type_id')">{{ fieldError('fee_type_id') }}</div>
                             </div>
-                            <template v-if="selectedGenerateFee && selectedGenerateFee.frequency !== 'lifetime'">
+                            <div class="col-12 col-md-6" v-if="selectedGenerateFee">
+                                <label class="form-label" for="gen-period-type">{{ t('app.billing.field_period') }} <span class="text-danger">*</span></label>
+                                <AppSelect2 id="gen-period-type" v-model="generateForm.period_type" :options="periodTypeOptions" :invalid="!!fieldError('period_type')" />
+                                <div class="invalid-feedback d-block" v-if="fieldError('period_type')">{{ fieldError('period_type') }}</div>
+                            </div>
+                            <template v-if="generateForm.period_type === 'yearly' || generateForm.period_type === 'monthly'">
                                 <div class="col-6 col-md-3">
                                     <label class="form-label" for="gen-year">{{ t('app.billing.field_year') }} <span class="text-danger">*</span></label>
                                     <input id="gen-year" v-model="generateForm.year" type="number" min="2020" max="2100" class="form-control" :class="{ 'is-invalid': fieldError('period') }">
                                 </div>
-                                <div class="col-6 col-md-3" v-if="selectedGenerateFee.frequency === 'monthly'">
+                                <div class="col-6 col-md-3" v-if="generateForm.period_type === 'monthly'">
                                     <label class="form-label" for="gen-month">{{ t('app.billing.field_month') }}</label>
                                     <AppSelect2 id="gen-month" v-model="generateForm.month" :options="monthOptions" />
                                 </div>
@@ -415,7 +499,7 @@ onMounted(async () => {
                                     <div class="invalid-feedback d-block" v-if="fieldError('period')">{{ fieldError('period') }}</div>
                                 </div>
                             </template>
-                            <div class="col-12" v-if="selectedGenerateFee && selectedGenerateFee.frequency === 'lifetime'">
+                            <div class="col-12" v-if="generateForm.period_type === 'lifetime'">
                                 <div class="alert alert-light small mb-0">{{ t('app.billing.lifetime_hint') }}</div>
                             </div>
                         </div>
@@ -449,7 +533,7 @@ onMounted(async () => {
                         </div>
                     </template>
 
-                    <template v-if="dialog === 'waive' || dialog === 'void'">
+                    <template v-if="dialog === 'waive' || dialog === 'void' || dialog === 'reject-claim'">
                         <label class="form-label" for="reason">{{ t('app.billing.field_reason') }} <span class="text-danger">*</span></label>
                         <textarea id="reason" v-model="reasonForm.reason" rows="3" maxlength="500" class="form-control" :class="{ 'is-invalid': fieldError('reason') }"></textarea>
                         <div class="invalid-feedback">{{ fieldError('reason') }}</div>

@@ -14,11 +14,12 @@ class FeeTypeFactory extends Factory
     {
         return [
             'code' => 'fee-'.fake()->unique()->numerify('####'),
-            'name_bm' => 'Yuran tahunan',
-            'name_en' => 'Annual fee',
+            'name_bm' => 'Yuran keahlian',
+            'name_en' => 'Membership fee',
             'description' => null,
-            'amount_cents' => 5000,
-            'frequency' => FeeType::FREQUENCY_YEARLY,
+            'monthly_cents' => null,
+            'yearly_cents' => 5000,
+            'lifetime_cents' => null,
             'business_category_id' => null,
             'due_days' => 30,
             'is_active' => true,
@@ -26,14 +27,22 @@ class FeeTypeFactory extends Factory
         ];
     }
 
+    /** Offers only a monthly price. */
     public function monthly(): static
     {
-        return $this->state(fn (): array => ['frequency' => FeeType::FREQUENCY_MONTHLY]);
+        return $this->state(fn (): array => ['monthly_cents' => 1000, 'yearly_cents' => null, 'lifetime_cents' => null]);
     }
 
+    /** Offers only a lifetime price. */
     public function lifetime(): static
     {
-        return $this->state(fn (): array => ['frequency' => FeeType::FREQUENCY_LIFETIME]);
+        return $this->state(fn (): array => ['monthly_cents' => null, 'yearly_cents' => null, 'lifetime_cents' => 20000]);
+    }
+
+    /** Offers all three periods. */
+    public function allPeriods(): static
+    {
+        return $this->state(fn (): array => ['monthly_cents' => 1000, 'yearly_cents' => 10000, 'lifetime_cents' => 200000]);
     }
 
     public function inactive(): static

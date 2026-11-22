@@ -6,6 +6,8 @@ import { api, ApiError, firstError } from '../lib/http';
 import { confirmAction, notifyError, notifySuccess } from '../lib/feedback';
 import { t } from '../lib/i18n';
 
+const PERIODS = ['monthly', 'yearly', 'lifetime'];
+
 const feeTypes = ref([]);
 const categories = ref([]);
 const loading = ref(false);
@@ -20,8 +22,9 @@ const emptyForm = () => ({
     name_bm: '',
     name_en: '',
     description: '',
-    amount: '',
-    frequency: 'yearly',
+    monthly_amount: '',
+    yearly_amount: '',
+    lifetime_amount: '',
     business_category_id: '',
     due_days: '30',
     sort_order: '0',
@@ -30,22 +33,12 @@ const emptyForm = () => ({
 
 const form = reactive(emptyForm());
 
-const frequencyOptions = computed(() => [
-    { id: 'yearly', text: t('app.billing.frequency_yearly') },
-    { id: 'monthly', text: t('app.billing.frequency_monthly') },
-    { id: 'lifetime', text: t('app.billing.frequency_lifetime') },
-]);
-
 const categoryOptions = computed(() => [
     { id: '', text: t('app.billing.category_all') },
     ...categories.value.filter((category) => category.is_active).map((category) => ({ id: category.id, text: category.name_bm })),
 ]);
 
 const fieldError = (name) => firstError(errors.value, name);
-
-function frequencyLabel(value) {
-    return t(`app.billing.frequency_${value}`);
-}
 
 async function load() {
     loading.value = true;
@@ -81,8 +74,9 @@ function openEdit(fee) {
         name_bm: fee.name_bm,
         name_en: fee.name_en ?? '',
         description: fee.description ?? '',
-        amount: fee.amount,
-        frequency: fee.frequency,
+        monthly_amount: fee.prices.monthly.amount ?? '',
+        yearly_amount: fee.prices.yearly.amount ?? '',
+        lifetime_amount: fee.prices.lifetime.amount ?? '',
         business_category_id: fee.business_category_id ? String(fee.business_category_id) : '',
         due_days: String(fee.due_days),
         sort_order: String(fee.sort_order),
@@ -97,8 +91,9 @@ function payload() {
         name_bm: form.name_bm.trim(),
         name_en: form.name_en.trim() === '' ? null : form.name_en.trim(),
         description: form.description.trim() === '' ? null : form.description.trim(),
-        amount: form.amount.trim(),
-        frequency: form.frequency,
+        monthly_amount: form.monthly_amount.trim(),
+        yearly_amount: form.yearly_amount.trim(),
+        lifetime_amount: form.lifetime_amount.trim(),
         business_category_id: form.business_category_id === '' ? null : Number(form.business_category_id),
         due_days: Number(form.due_days),
         sort_order: Number(form.sort_order),
@@ -149,8 +144,9 @@ async function toggleActive(fee) {
                 name_bm: fee.name_bm,
                 name_en: fee.name_en,
                 description: fee.description,
-                amount: fee.amount,
-                frequency: fee.frequency,
+                monthly_amount: fee.prices.monthly.amount ?? '',
+                yearly_amount: fee.prices.yearly.amount ?? '',
+                lifetime_amount: fee.prices.lifetime.amount ?? '',
                 business_category_id: fee.business_category_id,
                 due_days: fee.due_days,
                 sort_order: fee.sort_order,
@@ -182,8 +178,7 @@ onMounted(load);
                     <thead class="table-light">
                         <tr>
                             <th>{{ t('app.billing.col_name') }}</th>
-                            <th>{{ t('app.billing.col_amount') }}</th>
-                            <th>{{ t('app.billing.col_frequency') }}</th>
+                            <th>{{ t('app.billing.col_prices') }}</th>
                             <th>{{ t('app.billing.col_applies') }}</th>
                             <th>{{ t('app.billing.col_due') }}</th>
                             <th>{{ t('app.billing.col_status') }}</th>
@@ -191,26 +186,33 @@ onMounted(load);
                         </tr>
                     </thead>
                     <tbody>
-                        <tr v-if="loading"><td colspan="7" class="text-center py-4">{{ t('app.common.loading') }}</td></tr>
-                        <tr v-else-if="feeTypes.length === 0"><td colspan="7" class="text-center py-4 text-body-secondary">{{ t('app.common.no_records') }}</td></tr>
+                        <tr v-if="loading"><td colspan="6" class="text-center py-4">{{ t('app.common.loading') }}</td></tr>
+                        <tr v-else-if="feeTypes.length === 0"><td colspan="6" class="text-center py-4 text-body-secondary">{{ t('app.common.no_records') }}</td></tr>
                         <template v-else>
-                        <tr v-for="fee in feeTypes" :key="fee.id">
-                            <td>
-                                <div class="fw-semibold">{{ fee.name_bm }}</div>
-                                <div class="small text-body-secondary"><code>{{ fee.code }}</code></div>
-                            </td>
-                            <td class="text-nowrap">{{ fee.amount_label }}</td>
-                            <td class="small">{{ frequencyLabel(fee.frequency) }}</td>
-                            <td class="small">{{ fee.business_category ?? t('app.billing.category_all') }}</td>
-                            <td>{{ fee.due_days }}</td>
-                            <td><span class="badge" :class="fee.is_active ? 'text-bg-success' : 'text-bg-secondary'">{{ fee.is_active ? t('app.billing.status_active') : t('app.billing.status_inactive') }}</span></td>
-                            <td class="text-end text-nowrap">
-                                <button type="button" class="btn btn-sm btn-outline-primary me-1" @click="openEdit(fee)">{{ t('app.common.edit') }}</button>
-                                <button type="button" class="btn btn-sm btn-outline-secondary" @click="toggleActive(fee)">
-                                    {{ fee.is_active ? t('app.billing.status_inactive') : t('app.billing.status_active') }}
-                                </button>
-                            </td>
-                        </tr>
+                            <tr v-for="fee in feeTypes" :key="fee.id">
+                                <td>
+                                    <div class="fw-semibold">{{ fee.name_bm }}</div>
+                                    <div class="small text-body-secondary"><code>{{ fee.code }}</code></div>
+                                </td>
+                                <td class="small">
+                                    <div v-for="period in PERIODS" :key="period">
+                                        <template v-if="fee.prices[period].label">
+                                            <span class="text-body-secondary">{{ t(`app.billing.period_name_${period}`) }}:</span>
+                                            <span class="fw-semibold ms-1">{{ fee.prices[period].label }}</span>
+                                        </template>
+                                    </div>
+                                    <div v-if="fee.periods.length === 0" class="text-danger">{{ t('app.billing.error_no_period') }}</div>
+                                </td>
+                                <td class="small">{{ fee.business_category ?? t('app.billing.category_all') }}</td>
+                                <td>{{ fee.due_days }}</td>
+                                <td><span class="badge" :class="fee.is_active ? 'text-bg-success' : 'text-bg-secondary'">{{ fee.is_active ? t('app.billing.status_active') : t('app.billing.status_inactive') }}</span></td>
+                                <td class="text-end text-nowrap">
+                                    <button type="button" class="btn btn-sm btn-outline-primary me-1" @click="openEdit(fee)">{{ t('app.common.edit') }}</button>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="toggleActive(fee)">
+                                        {{ fee.is_active ? t('app.billing.status_inactive') : t('app.billing.status_active') }}
+                                    </button>
+                                </td>
+                            </tr>
                         </template>
                     </tbody>
                 </table>
@@ -220,16 +222,12 @@ onMounted(load);
         <AppModal :open="showForm" :title="editing ? t('app.billing.edit_fee') : t('app.billing.new_fee')" size="modal-lg" @close="showForm = false">
             <form novalidate @submit.prevent="save">
                 <div class="modal-body">
+                    <p class="small text-body-secondary">{{ t('app.billing.prices_hint') }}</p>
                     <div class="row g-3">
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="fee-code">{{ t('app.billing.field_code') }} <span class="text-danger">*</span></label>
                             <input id="fee-code" v-model="form.code" type="text" maxlength="40" class="form-control" :class="{ 'is-invalid': fieldError('code') }">
                             <div class="invalid-feedback">{{ fieldError('code') }}</div>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <label class="form-label" for="fee-amount">{{ t('app.billing.field_amount') }} <span class="text-danger">*</span></label>
-                            <input id="fee-amount" v-model="form.amount" type="text" inputmode="decimal" maxlength="14" class="form-control" :class="{ 'is-invalid': fieldError('amount') }">
-                            <div class="invalid-feedback">{{ fieldError('amount') }}</div>
                         </div>
                         <div class="col-12 col-md-6">
                             <label class="form-label" for="fee-name-bm">{{ t('app.billing.field_name_bm') }} <span class="text-danger">*</span></label>
@@ -241,14 +239,26 @@ onMounted(load);
                             <input id="fee-name-en" v-model="form.name_en" type="text" maxlength="150" class="form-control">
                         </div>
                         <div class="col-12 col-md-6">
-                            <label class="form-label" for="fee-frequency">{{ t('app.billing.field_frequency') }} <span class="text-danger">*</span></label>
-                            <AppSelect2 id="fee-frequency" v-model="form.frequency" :options="frequencyOptions" />
-                        </div>
-                        <div class="col-12 col-md-6">
                             <label class="form-label" for="fee-category">{{ t('app.billing.field_category') }}</label>
                             <AppSelect2 id="fee-category" v-model="form.business_category_id" :options="categoryOptions" />
-                            <div class="invalid-feedback d-block" v-if="fieldError('business_category_id')">{{ fieldError('business_category_id') }}</div>
                         </div>
+
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="fee-monthly">{{ t('app.billing.field_monthly') }}</label>
+                            <input id="fee-monthly" v-model="form.monthly_amount" type="text" inputmode="decimal" maxlength="14" class="form-control" :class="{ 'is-invalid': fieldError('monthly_amount') }" :placeholder="t('app.billing.not_offered')">
+                            <div class="invalid-feedback">{{ fieldError('monthly_amount') }}</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="fee-yearly">{{ t('app.billing.field_yearly') }}</label>
+                            <input id="fee-yearly" v-model="form.yearly_amount" type="text" inputmode="decimal" maxlength="14" class="form-control" :class="{ 'is-invalid': fieldError('yearly_amount') }" :placeholder="t('app.billing.not_offered')">
+                            <div class="invalid-feedback">{{ fieldError('yearly_amount') }}</div>
+                        </div>
+                        <div class="col-12 col-md-4">
+                            <label class="form-label" for="fee-lifetime">{{ t('app.billing.field_lifetime') }}</label>
+                            <input id="fee-lifetime" v-model="form.lifetime_amount" type="text" inputmode="decimal" maxlength="14" class="form-control" :class="{ 'is-invalid': fieldError('lifetime_amount') }" :placeholder="t('app.billing.not_offered')">
+                            <div class="invalid-feedback">{{ fieldError('lifetime_amount') }}</div>
+                        </div>
+
                         <div class="col-6 col-md-3">
                             <label class="form-label" for="fee-due">{{ t('app.billing.field_due_days') }} <span class="text-danger">*</span></label>
                             <input id="fee-due" v-model="form.due_days" type="number" min="1" max="365" class="form-control" :class="{ 'is-invalid': fieldError('due_days') }">
@@ -257,6 +267,9 @@ onMounted(load);
                         <div class="col-6 col-md-3">
                             <label class="form-label" for="fee-sort">{{ t('app.billing.field_sort') }}</label>
                             <input id="fee-sort" v-model="form.sort_order" type="number" min="0" max="999" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <div class="invalid-feedback d-block" v-if="fieldError('yearly_amount')">{{ fieldError('yearly_amount') }}</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label" for="fee-description">{{ t('app.billing.field_description') }}</label>

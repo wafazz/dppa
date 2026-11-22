@@ -62,6 +62,18 @@ class MembershipInvoice extends Model
     }
 
     /**
+     * monthly, yearly or lifetime, read from the period key: "2027-03", "2027" or "lifetime".
+     */
+    public function periodType(): string
+    {
+        return match (true) {
+            $this->period_key === 'lifetime' => FeeType::PERIOD_LIFETIME,
+            str_contains($this->period_key, '-') => FeeType::PERIOD_MONTHLY,
+            default => FeeType::PERIOD_YEARLY,
+        };
+    }
+
+    /**
      * What is still owed, in sen. Waived and paid invoices owe nothing.
      */
     public function balanceCents(): int

@@ -12,9 +12,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Issues the charges fee types define, one invoice per member, fee and period, and handles waivers.
+ * Issues the charges fees define, one invoice per member, fee and period, and handles waivers.
  *
  * A period key is "lifetime" for a one-off charge, "2027" for a membership year, and "2027-03" for a month.
+ * Each invoice takes the price of its period when it is issued.
  */
 class InvoiceService
 {
@@ -27,26 +28,27 @@ class InvoiceService
     ) {}
 
     /**
-     * Issue the fee to every approved member it applies to, for each period the request covers.
-     * Monthly fees given a year (2027) cover all twelve months. Running it again only fills the gaps.
+     * Issue one period of a fee to every approved member it applies to. A monthly period given a year covers all
+     * twelve months. Running it again only fills the gaps.
      *
      * @return array{created: int, skipped: int}
      *
      * @throws ValidationException
      */
-    public function generate(FeeType $fee, ?string $period, User $actor): array
+    public function generate(FeeType $fee, string $periodType, ?string $period, User $actor): array
     {
+        $amount = $this->priceOrFail($fee, $periodType);
         $created = 0;
         $skipped = 0;
 
-        foreach ($this->periodKeysFor($fee, $period) as $key) {
+        foreach ($this->periodKeysFor($periodType, $period) as $key) {
             Member::query()
                 ->where('status', MemberStatus::Approved)
                 ->when($fee->business_category_id !== null, fn ($query) => $query->where('business_category_id', $fee->business_category_id))
                 ->orderBy('id')
-                ->chunkById(200, function ($members) use ($fee, $key, $actor, &$created, &$skipped): void {
+                ->chunkById(200, function ($members) use ($fee, $periodType, $key, $amount, $actor, &$created, &$skipped): void {
                     foreach ($members as $member) {
-                        $this->issue($member, $fee, $key, $actor) === null ? $skipped++ : $created++;
+                        $this->issue($member, $fee, $periodType, $key, $amount, $actor, notify: true) === null ? $skipped++ : $created++;
                     }
                 });
         }
@@ -54,6 +56,7 @@ class InvoiceService
         $this->activity->record('invoice.generated', $fee->name_bm, $actor, $fee, [
             'created' => $created,
             'skipped' => $skipped,
+            'period_type' => $periodType,
             'period' => $period,
         ]);
 
@@ -75,18 +78,95 @@ class InvoiceService
                 ->whereNull('business_category_id')
                 ->orWhere('business_category_id', $member->business_category_id))
             ->get()
-            ->each(fn (FeeType $fee) => $this->issue($member, $fee, $this->currentKeyFor($fee), null));
+            ->each(function (FeeType $fee) use ($member): void {
+                [$periodType, $key] = $this->defaultPeriodFor($fee);
+
+                $this->issue($member, $fee, $periodType, $key, (int) $fee->priceFor($periodType), null, notify: true);
+            });
+    }
+
+    /**
+     * The periods a member may choose when paying a fee: the months still to come this year, the current and next
+     * membership year, or the lifetime charge.
+     *
+     * @return array<int, array{period_type: string, period_key: string, label: string}>
+     */
+    public function memberPeriodOptions(FeeType $fee): array
+    {
+        $options = [];
+        $today = Carbon::today();
+
+        if ($fee->priceFor(FeeType::PERIOD_MONTHLY) !== null) {
+            for ($month = $today->month; $month <= 12; $month++) {
+                $start = Carbon::create($today->year, $month, 1);
+
+                $options[] = [
+                    'period_type' => FeeType::PERIOD_MONTHLY,
+                    'period_key' => $start->format('Y-m'),
+                    'label' => $start->translatedFormat('F Y'),
+                ];
+            }
+        }
+
+        if ($fee->priceFor(FeeType::PERIOD_YEARLY) !== null) {
+            foreach ([$today->year, $today->year + 1] as $year) {
+                $options[] = [
+                    'period_type' => FeeType::PERIOD_YEARLY,
+                    'period_key' => (string) $year,
+                    'label' => __('app.billing.period_year', ['year' => $year]),
+                ];
+            }
+        }
+
+        if ($fee->priceFor(FeeType::PERIOD_LIFETIME) !== null) {
+            $options[] = [
+                'period_type' => FeeType::PERIOD_LIFETIME,
+                'period_key' => self::LIFETIME_KEY,
+                'label' => __('app.billing.period_lifetime'),
+            ];
+        }
+
+        return $options;
+    }
+
+    /**
+     * A member chooses a period to pay. Returns the invoice for it, creating it if needed.
+     *
+     * @throws ValidationException
+     */
+    public function chooseForMember(Member $member, FeeType $fee, string $periodType, string $periodKey): MembershipInvoice
+    {
+        $allowed = collect($this->memberPeriodOptions($fee))
+            ->contains(fn (array $option): bool => $option['period_type'] === $periodType && $option['period_key'] === $periodKey);
+
+        if (! $allowed || ! $this->appliesTo($fee, $member)) {
+            throw ValidationException::withMessages(['period' => __('app.billing.error_period_not_offered')]);
+        }
+
+        $amount = $this->priceOrFail($fee, $periodType);
+
+        return $this->issue($member, $fee, $periodType, $periodKey, $amount, null, notify: false)
+            ?? MembershipInvoice::query()
+                ->where('member_id', $member->id)
+                ->where('fee_type_id', $fee->id)
+                ->where('period_key', $periodKey)
+                ->firstOrFail();
+    }
+
+    public function appliesTo(FeeType $fee, Member $member): bool
+    {
+        return $fee->business_category_id === null || $fee->business_category_id === $member->business_category_id;
     }
 
     /**
      * Creates one invoice. Returns null when the member already has this fee for this period.
      */
-    public function issue(Member $member, FeeType $fee, string $periodKey, ?User $actor): ?MembershipInvoice
+    public function issue(Member $member, FeeType $fee, string $periodType, string $periodKey, int $amountCents, ?User $actor, bool $notify): ?MembershipInvoice
     {
         $invoice = MembershipInvoice::query()->firstOrCreate(
             ['member_id' => $member->id, 'fee_type_id' => $fee->id, 'period_key' => $periodKey],
             [
-                'amount_cents' => $fee->amount_cents,
+                'amount_cents' => $amountCents,
                 'paid_cents' => 0,
                 'status' => MembershipInvoice::STATUS_UNPAID,
                 'due_on' => Carbon::today()->addDays($fee->due_days),
@@ -101,7 +181,7 @@ class InvoiceService
 
         $invoice->update(['number' => $this->numberFor($invoice)]);
 
-        if ($this->settings->all()['send_invoice_emails'] && $member->email !== null) {
+        if ($notify && $this->settings->all()['send_invoice_emails'] && $member->email !== null) {
             $this->notices->deliver('invoice_issued', (string) $member->email, [
                 'name' => $member->applicant_name,
                 'fee' => $fee->name_bm,
@@ -115,33 +195,21 @@ class InvoiceService
     }
 
     /**
-     * The period keys a generate request covers. Mismatched requests are refused with a clear message.
+     * The period keys a generate request covers. A period that does not fit the period type is refused.
      *
      * @return array<int, string>
      *
      * @throws ValidationException
      */
-    public function periodKeysFor(FeeType $fee, ?string $period): array
+    public function periodKeysFor(string $periodType, ?string $period): array
     {
         $period = $period === null || $period === '' ? null : $period;
 
-        return match ($fee->frequency) {
-            FeeType::FREQUENCY_LIFETIME => [self::LIFETIME_KEY],
-            FeeType::FREQUENCY_YEARLY => $this->yearlyKeys($period),
-            FeeType::FREQUENCY_MONTHLY => $this->monthlyKeys($period),
-            default => throw ValidationException::withMessages(['period' => __('app.billing.error_period')]),
-        };
-    }
-
-    /**
-     * The period a fee is charged for today, used when a member is approved.
-     */
-    public function currentKeyFor(FeeType $fee): string
-    {
-        return match ($fee->frequency) {
-            FeeType::FREQUENCY_MONTHLY => now()->format('Y-m'),
-            FeeType::FREQUENCY_YEARLY => now()->format('Y'),
-            default => self::LIFETIME_KEY,
+        return match ($periodType) {
+            FeeType::PERIOD_LIFETIME => [self::LIFETIME_KEY],
+            FeeType::PERIOD_YEARLY => $this->yearlyKeys($period),
+            FeeType::PERIOD_MONTHLY => $this->monthlyKeys($period),
+            default => throw ValidationException::withMessages(['period_type' => __('app.billing.error_period')]),
         };
     }
 
@@ -192,6 +260,39 @@ class InvoiceService
     public function symbol(): string
     {
         return (string) $this->settings->all()['currency_symbol'];
+    }
+
+    /**
+     * The period a fee is charged for when a member is approved: the yearly price if offered, otherwise lifetime,
+     * otherwise the current month.
+     *
+     * @return array{0: string, 1: string}
+     */
+    private function defaultPeriodFor(FeeType $fee): array
+    {
+        if ($fee->priceFor(FeeType::PERIOD_YEARLY) !== null) {
+            return [FeeType::PERIOD_YEARLY, now()->format('Y')];
+        }
+
+        if ($fee->priceFor(FeeType::PERIOD_LIFETIME) !== null) {
+            return [FeeType::PERIOD_LIFETIME, self::LIFETIME_KEY];
+        }
+
+        return [FeeType::PERIOD_MONTHLY, now()->format('Y-m')];
+    }
+
+    /**
+     * @throws ValidationException
+     */
+    private function priceOrFail(FeeType $fee, string $periodType): int
+    {
+        $price = $fee->priceFor($periodType);
+
+        if ($price === null) {
+            throw ValidationException::withMessages(['period_type' => __('app.billing.error_not_offered')]);
+        }
+
+        return $price;
     }
 
     /**

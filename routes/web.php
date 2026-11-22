@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\InvitationController;
 use App\Http\Controllers\Api\InvoiceController;
 use App\Http\Controllers\Api\MemberController;
 use App\Http\Controllers\Api\MemberExportController;
+use App\Http\Controllers\Api\PaymentClaimController;
 use App\Http\Controllers\Api\PaymentController;
 use App\Http\Controllers\Api\PaymentSettingsController;
 use App\Http\Controllers\Api\PositionAppointmentController;
@@ -150,6 +151,8 @@ Route::middleware(['auth', 'members-only'])->prefix('member')->name('member.')->
     Route::get('/profile', [PageController::class, 'profile'])->name('profile.index');
     Route::get('/activity', [ActivityController::class, 'index'])->name('activity.index');
     Route::get('/invoices', [MemberBillingController::class, 'index'])->name('invoices.index');
+    Route::post('/invoices', [MemberBillingController::class, 'choose'])->name('invoices.choose');
+    Route::post('/invoices/{invoice}/report', [MemberBillingController::class, 'report'])->name('invoices.report');
 
     Route::prefix('api')->name('api.')->group(function () use ($selfServiceApi): void {
         // The profile page needs the business category list.
@@ -206,6 +209,10 @@ Route::middleware(['auth', 'not-member'])->prefix('admin')->name('admin.')->grou
         Route::post('/invoices/{invoice}/payments', [InvoiceController::class, 'recordPayment'])->middleware('can:manage-members')->name('invoices.payments.store');
         Route::post('/invoices/{invoice}/waive', [InvoiceController::class, 'waive'])->middleware('can:manage-accounts')->name('invoices.waive');
         Route::post('/payments/{payment}/void', [PaymentController::class, 'void'])->middleware('can:manage-accounts')->name('payments.void');
+
+        Route::get('/payment-claims', [PaymentClaimController::class, 'index'])->middleware('can:manage-members')->name('payment-claims.index');
+        Route::post('/payment-claims/{claim}/confirm', [PaymentClaimController::class, 'confirm'])->middleware('can:manage-members')->name('payment-claims.confirm');
+        Route::post('/payment-claims/{claim}/reject', [PaymentClaimController::class, 'reject'])->middleware('can:manage-members')->name('payment-claims.reject');
 
         Route::get('/payment-settings', [PaymentSettingsController::class, 'show'])->middleware('can:manage-settings')->name('payment-settings.show');
         Route::put('/payment-settings', [PaymentSettingsController::class, 'update'])->middleware('can:manage-settings')->name('payment-settings.update');

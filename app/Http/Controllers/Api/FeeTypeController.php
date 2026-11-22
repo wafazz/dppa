@@ -42,7 +42,8 @@ class FeeTypeController extends Controller
     }
 
     /**
-     * Amounts arrive as ringgit text and are stored in sen. Changing a fee never changes invoices already issued.
+     * Each period price is ringgit text stored in sen; an empty price means that period is not offered.
+     * Changing a price never changes invoices already issued.
      *
      * @param  array<string, mixed>  $validated
      * @return array<string, mixed>
@@ -52,10 +53,11 @@ class FeeTypeController extends Controller
         return [
             'code' => strtolower(trim((string) $validated['code'])),
             'name_bm' => trim((string) $validated['name_bm']),
-            'name_en' => isset($validated['name_en']) && trim((string) $validated['name_en']) !== '' ? trim((string) $validated['name_en']) : null,
-            'description' => isset($validated['description']) && trim((string) $validated['description']) !== '' ? trim((string) $validated['description']) : null,
-            'amount_cents' => Money::toCents((string) $validated['amount']),
-            'frequency' => $validated['frequency'],
+            'name_en' => $this->text($validated['name_en'] ?? null),
+            'description' => $this->text($validated['description'] ?? null),
+            'monthly_cents' => $this->cents($validated['monthly_amount'] ?? null),
+            'yearly_cents' => $this->cents($validated['yearly_amount'] ?? null),
+            'lifetime_cents' => $this->cents($validated['lifetime_amount'] ?? null),
             'business_category_id' => $validated['business_category_id'] ?? null,
             'due_days' => (int) $validated['due_days'],
             'is_active' => (bool) ($validated['is_active'] ?? true),
@@ -63,20 +65,40 @@ class FeeTypeController extends Controller
         ];
     }
 
+    private function cents(?string $amount): ?int
+    {
+        return $amount === null || trim($amount) === '' ? null : Money::toCents($amount);
+    }
+
+    private function text(?string $value): ?string
+    {
+        return $value === null || trim($value) === '' ? null : trim($value);
+    }
+
     /**
      * @return array<string, mixed>
      */
     private function payload(FeeType $feeType): array
     {
+        $prices = [];
+
+        foreach (FeeType::PERIODS as $period) {
+            $cents = $feeType->priceFor($period);
+
+            $prices[$period] = [
+                'amount' => $cents === null ? null : number_format($cents / 100, 2, '.', ''),
+                'label' => $cents === null ? null : Money::format($cents),
+            ];
+        }
+
         return [
             'id' => $feeType->id,
             'code' => $feeType->code,
             'name_bm' => $feeType->name_bm,
             'name_en' => $feeType->name_en,
             'description' => $feeType->description,
-            'amount' => number_format($feeType->amount_cents / 100, 2, '.', ''),
-            'amount_label' => Money::format($feeType->amount_cents),
-            'frequency' => $feeType->frequency,
+            'prices' => $prices,
+            'periods' => $feeType->offeredPeriods(),
             'business_category_id' => $feeType->business_category_id,
             'business_category' => $feeType->businessCategory?->name_bm,
             'due_days' => $feeType->due_days,
